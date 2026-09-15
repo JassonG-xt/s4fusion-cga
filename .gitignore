@@ -1,0 +1,27 @@
+# heavy / third-party artifacts — never published
+dataset/
+code/checkpoints/
+code/.venv-brss/
+.cache/
+.dataset-tools-venv/
+
+# NOTE: code/results/ is intentionally NOT ignored in this public release.
+# Only the per-image result CSVs (*.csv) are published; the derived fused
+# images (~12 GB) are excluded at packaging time, not by this file.
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# editor / os
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# logs (kept out of the public release)
+code/logs/
+*.log

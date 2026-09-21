@@ -38,8 +38,10 @@ Inputs it needs, all reconstructible from the released material:
 | Paper item | Script | Reads | Writes |
 |---|---|---|---|
 | Table 3, main comparison | `aggregate_sota.py` | `code/results/baselines/*.csv` | `code/results/baselines/SOTA_MAIN_TABLE.csv` |
-| Tables 4–5, per-seed and pooled | `analyze_seeds.py`, `report_effects.py` | `code/results/seeds/CGA_str_s*.csv`, `B0_e32_s*.csv` | `code/results/seeds/effects_*.csv`, `effects_budget_matched.csv` |
+| Table 4, per-seed (budget-matched) | `analyze_seeds.py`, `report_effects.py` | `code/results/seeds/CGA_str_s*.csv`, `B0_e32_s*.csv` | `code/results/seeds/effects_budget_matched.csv` (rows `scope` = s42 / s123 / s3407) |
+| Table 5, pooled CGA−B0 (descriptive) | `analyze_seeds.py`, `report_effects.py` | `code/results/seeds/CGA_str_s*.csv`, `B0_s*.csv` | `code/results/seeds/effects_primary.csv` (row `scope` = pooled) |
 | Table 6 + Table 11 | `cluster_audit_final.py` | manifest, annotations, `arb/*/runs_full/det/labels/` | stdout + `--json` + `--export-mapping` |
+| Table 11, evaluator mAP50 column | — (recorded output) | see below | `code/results/h5/control_baseline_map50.csv` |
 | Tables 7–8, object-level sensitivity | `arb_full300_stats.py` | `arb/*/runs_full/det/labels/`, annotations | `code/results/h5/effects_single_baseline*.csv`, `effects_budget_matched.csv` |
 | Table 9, selector statistics | `export_select_stats.py` | selector activations on the 300 test pairs | `code/results/select_stats/select_*.csv` |
 | Table 10, colour audit | `rebuild_rgb.py`, `eval_metrics_extended.py` | fused outputs, visible references | `code/results/arb/*/color_metrics.csv` |
@@ -50,6 +52,23 @@ Inputs it needs, all reconstructible from the released material:
 | Fig. 1 (soft vs hard) | `results/make_soft_vs_hard_fig.py` | closed form + synthetic pair | `figs/soft_vs_hard.pdf` |
 | Fig. 3–4 (mechanism panels) | `cga_visualize.py` | fused outputs and maps | `figs/*_panel.png` |
 | Fig. 5 (qualitative) | `assemble_qual_fig.py` | fused outputs of every method | `figs/qualitative_*.png` |
+
+### Where the content-control mAP50 column comes from
+
+The ultralytics evaluator returns mAP50 as a single aggregate scalar and writes no
+per-image AP, so the three values in the paper's content-control table are the
+evaluator's own printed output. They are shipped here rather than recomputed:
+
+- `code/results/h5/control_baseline_map50.csv` — the numbers, with a `source`
+  column naming the file each one was read from (parsed, not retyped).
+- `code/results/full300_evaluator_lines.txt` — the verbatim evaluator lines for
+  the learned map and the shared baseline, with file and line number.
+- `code/results/b1_content_control_stdout.txt` — the original stdout of the
+  content-control runs (uniform and shuffled), shipped in full. It also records
+  the prediction-coverage check on those two arms.
+
+Everything else in Table 11 (recall, precision, false positives per image, and
+every test statistic) is recomputable with `cluster_audit_final.py`.
 
 ## 3. Training
 

@@ -1,0 +1,11 @@
+# Verbatim extract of the ultralytics-evaluator lines behind the manuscript's
+# content-control table (Table 11) and its single-baseline reference row.
+# Lines are copied, not retyped; each carries the file and line it came from.
+# The full logs are not shipped (they are large and cover unrelated runs), so
+# the relevant lines are preserved here. The control transcript named below IS
+# the original file and is shipped in full.
+
+code/logs/eval_str_cga.log:29:CGA_str full-300 P/R/mAP50/mAP5095: [0.8637, 0.6059, 0.7282, 0.5006]
+code/logs/eval_str_cga.log:48:B0cmp_full full-300 P/R/mAP50/mAP5095: [0.8439, 0.6085, 0.7197, 0.4905]
+code/results/b1_content_control_stdout.txt:6:cga_uniform full-300 P/R/mAP50/mAP5095: [0.8105, 0.6224, 0.7161, 0.4826]
+code/results/b1_content_control_stdout.txt:7:cga_shuffle full-300 P/R/mAP50/mAP5095: [0.8532, 0.6163, 0.7305, 0.5025]

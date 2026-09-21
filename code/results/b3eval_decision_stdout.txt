@@ -1,0 +1,18 @@
+43:[chain-e32] Wed Sep 16 12:55:39 CST 2026 budget-matched H5: CGA_str vs B0_e32_s42
+47:[integrity] INFO: the two arms differ in prediction-file count (missing B0_e32_s42=9, CGA_str=7). Under this pipeline a missing file is a zero-detection result (ultralytics omits files for images with no detection; zero empty files across every arm), so the difference is detector behaviour, not lost data. Scoring those objects as 'not detected' is correct.
+48:[integrity] PASS: no empty files, no missing fused inputs, no count below the arm's own history.
+51:[stats] recall HIGH:  B0_e32_s42=0.4419 -> CGA_str=0.4579 (+0.0159)  recovered=18 lost=4  p=4.344e-03
+52:[primary-H5] p<0.05 AND recovered-lost>=3 (FROZEN primary criterion, GATE1_FREEZE.md §3): PASS (p=4.344e-03, recovered-lost=+14)   <== GOVERNS THE ROUTE DECISION
+53:[gate-C1] high-conflict recall >=+0.02 & p<0.05 (STRICTER pre-registered gate, GATE1_FREEZE.md L58-64): FAIL (delta=+0.0159, p=4.34e-03)   <== secondary, not the primary criterion
+85:[chain-e32] Wed Sep 16 13:25:14 CST 2026 budget-matched H5: CGA_str_s123 vs B0_e32_s123
+89:[integrity] INFO: the two arms differ in prediction-file count (missing B0_e32_s123=8, CGA_str_s123=6). Under this pipeline a missing file is a zero-detection result (ultralytics omits files for images with no detection; zero empty files across every arm), so the difference is detector behaviour, not lost data. Scoring those objects as 'not detected' is correct.
+90:[integrity] PASS: no empty files, no missing fused inputs, no count below the arm's own history.
+93:[stats] recall HIGH:  B0_e32_s123=0.4476 -> CGA_str_s123=0.4544 (+0.0068)  recovered=13 lost=7  p=2.632e-01
+94:[primary-H5] p<0.05 AND recovered-lost>=3 (FROZEN primary criterion, GATE1_FREEZE.md §3): FAIL (p=2.632e-01, recovered-lost=+6)   <== GOVERNS THE ROUTE DECISION
+95:[gate-C1] high-conflict recall >=+0.02 & p<0.05 (STRICTER pre-registered gate, GATE1_FREEZE.md L58-64): FAIL (delta=+0.0068, p=2.63e-01)   <== secondary, not the primary criterion
+127:[chain-e32] Wed Sep 16 13:54:51 CST 2026 budget-matched H5: CGA_str_s3407 vs B0_e32_s3407
+131:[integrity] INFO: the two arms differ in prediction-file count (missing B0_e32_s3407=8, CGA_str_s3407=6). Under this pipeline a missing file is a zero-detection result (ultralytics omits files for images with no detection; zero empty files across every arm), so the difference is detector behaviour, not lost data. Scoring those objects as 'not detected' is correct.
+132:[integrity] PASS: no empty files, no missing fused inputs, no count below the arm's own history.
+135:[stats] recall HIGH:  B0_e32_s3407=0.4499 -> CGA_str_s3407=0.4544 (+0.0046)  recovered=11 lost=7  p=4.807e-01
+136:[primary-H5] p<0.05 AND recovered-lost>=3 (FROZEN primary criterion, GATE1_FREEZE.md §3): FAIL (p=4.807e-01, recovered-lost=+4)   <== GOVERNS THE ROUTE DECISION
+137:[gate-C1] high-conflict recall >=+0.02 & p<0.05 (STRICTER pre-registered gate, GATE1_FREEZE.md L58-64): FAIL (delta=+0.0046, p=4.81e-01)   <== secondary, not the primary criterion

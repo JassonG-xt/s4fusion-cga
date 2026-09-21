@@ -1,0 +1,33 @@
+[p1 10:14:24] B-1/M2 fusion-end control with the same checkpoint (checkpoints/abl_CGA_str_s42.pt) -> results/h5_str
+[p1 11:04:18] B-1 detection-end: generate uniform / shuffle fused images from checkpoints/abl_CGA_str_s42.pt
+[p1 11:12:40] M3 integrity: cga_uniform images = 300/300 OK
+[p1 11:21:15] M3 integrity: cga_shuffle images = 300/300 OK
+[p1 11:21:15] B-1 detection-end: detection on the full 300 (legacy venv, CPU)
+cga_uniform full-300 P/R/mAP50/mAP5095: [0.8105, 0.6224, 0.7161, 0.4826]
+cga_shuffle full-300 P/R/mAP50/mAP5095: [0.8532, 0.6163, 0.7305, 0.5025]
+[p1 11:27:08] M3 integrity: cga_uniform detection labels = 298
+[p1 11:27:08] M3 integrity: cga_shuffle detection labels = 292
+[p1 11:27:09] B-1 detection-end: high-conflict statistics vs the learned map (CGA_str)
+[p1 11:27:09] --- cga_uniform vs CGA_str  (read [primary-H5] and [integrity]; [gate-C1] is the stricter gate) ---
+[integrity] ids_total=300 ids_with_gt=300 ids_with_sources=300 objects=2583
+[integrity] the high-conflict subset is variant-independent by construction (conflict is computed from the IR/VI inputs, not the predictions)
+[integrity] prediction coverage: CGA_str=293/300 cga_uniform=298/300
+[integrity] FAIL: prediction coverage is ASYMMETRIC (missing CGA_str=7, cga_uniform=2). The arm with fewer labels is scored as 'not detected' more often, which biases the delta towards cga_uniform. Investigate before reading any verdict below.
+[stats] objects=2583 high-conflict=878 (missing preds: CGA_str=7, cga_uniform=2)
+[stats] recall ALL:   CGA_str=0.6384 -> cga_uniform=0.6403 (+0.0019)
+[stats] recall HIGH:  CGA_str=0.4579 -> cga_uniform=0.5103 (+0.0524)  recovered=77 lost=31  p=1.115e-05
+[primary-H5] p<0.05 AND recovered-lost>=3 (FROZEN primary criterion, GATE1_FREEZE.md §3): PASS (p=1.115e-05, recovered-lost=+46)   <== GOVERNS THE ROUTE DECISION
+[gate-C1] high-conflict recall >=+0.02 & p<0.05 (STRICTER pre-registered gate, GATE1_FREEZE.md L58-64): PASS (delta=+0.0524, p=1.12e-05)   <== secondary, not the primary criterion
+[integrity] exiting non-zero: coverage is asymmetric. Use --allow-missing ONLY to reproduce a frozen number deliberately.
+[p1 11:28:41] --- cga_shuffle vs CGA_str  (read [primary-H5] and [integrity]; [gate-C1] is the stricter gate) ---
+[integrity] ids_total=300 ids_with_gt=300 ids_with_sources=300 objects=2583
+[integrity] the high-conflict subset is variant-independent by construction (conflict is computed from the IR/VI inputs, not the predictions)
+[integrity] prediction coverage: CGA_str=293/300 cga_shuffle=292/300
+[integrity] FAIL: prediction coverage is ASYMMETRIC (missing CGA_str=7, cga_shuffle=8). The arm with fewer labels is scored as 'not detected' more often, which biases the delta towards CGA_str. Investigate before reading any verdict below.
+[stats] objects=2583 high-conflict=878 (missing preds: CGA_str=7, cga_shuffle=8)
+[stats] recall ALL:   CGA_str=0.6384 -> cga_shuffle=0.6376 (-0.0008)
+[stats] recall HIGH:  CGA_str=0.4579 -> cga_shuffle=0.4567 (-0.0011)  recovered=3 lost=4  p=1.000e+00
+[primary-H5] p<0.05 AND recovered-lost>=3 (FROZEN primary criterion, GATE1_FREEZE.md §3): FAIL (p=1.000e+00, recovered-lost=-1)   <== GOVERNS THE ROUTE DECISION
+[gate-C1] high-conflict recall >=+0.02 & p<0.05 (STRICTER pre-registered gate, GATE1_FREEZE.md L58-64): FAIL (delta=-0.0011, p=1.00e+00)   <== secondary, not the primary criterion
+[integrity] exiting non-zero: coverage is asymmetric. Use --allow-missing ONLY to reproduce a frozen number deliberately.
+[p1 11:29:53] B-1 done. Read [primary-H5] for R2: learned>uniform AND learned>shuffle => R2 holds;

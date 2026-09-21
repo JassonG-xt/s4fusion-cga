@@ -1,0 +1,5 @@
+arm,role,precision,recall,mAP50,mAP50_95,source
+CGA_str,"learned support map (the method arm)",0.8637,0.6059,0.7282,0.5006,code/logs/eval_str_cga.log
+cga_uniform,"content control: all-ones map",0.8105,0.6224,0.7161,0.4826,code/results/b1_content_control_stdout.txt
+cga_shuffle,"content control: seeded permutation of the learned map",0.8532,0.6163,0.7305,0.5025,code/results/b1_content_control_stdout.txt
+B0cmp_full,"single shared 20-epoch baseline (reference row)",0.8439,0.6085,0.7197,0.4905,code/logs/eval_str_cga.log

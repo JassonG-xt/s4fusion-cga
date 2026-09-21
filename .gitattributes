@@ -9,3 +9,4 @@
 *.jpg  binary
 *.jpeg binary
 *.eps  binary
+*.json -text

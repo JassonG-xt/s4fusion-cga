@@ -1,0 +1,7 @@
+tag,checkpoint,use_cga,boundary_mode,gate_type,height,width,params_m,trainable_params_m,ms_per_iter,fps,peak_mem_mb,device
+official,../../S4Fusion-main/model/model.pkl,False,none,scalar,507,507,3.562981,3.562981,225.6979,4.4307,578.25,cuda:0
+official,../../S4Fusion-main/model/model.pkl,False,none,scalar,1034,769,3.562981,3.562981,747.7645,1.3373,1739.11,cuda:0
+B0,checkpoints/abl_B0_s42.pt,False,none,scalar,507,507,3.562981,3.562981,219.5142,4.5555,578.25,cuda:0
+B0,checkpoints/abl_B0_s42.pt,False,none,scalar,1034,769,3.562981,3.562981,752.4293,1.329,1739.11,cuda:0
+CGA,checkpoints/abl_CGA_str_s42.pt,True,none,scalar,507,507,3.564504,3.564504,230.4176,4.3399,578.26,cuda:0
+CGA,checkpoints/abl_CGA_str_s42.pt,True,none,scalar,1034,769,3.564504,3.564504,791.0777,1.2641,1739.12,cuda:0

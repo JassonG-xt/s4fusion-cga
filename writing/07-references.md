@@ -317,7 +317,7 @@
 | T2-NEEDS-UPGRADE(承重,须升级/替换) | **2**(#18 MemMamba、#36 ND-CNPFuse) |
 | MISSING-FROM-LIST(稿中被引但 03 无条目) | **0** |
 | MISSING-ADDED(本次新造条目) | **0**(全部条目均出自 03 §A/§B/§E) |
-| INSERT-NEEDED(占位符待补) | **4**(#38 TarDAL、#39 VMamba、#40 QABF、#41 VIF) |
+| INSERT-NEEDED(占位符待补) | **0（2026-09-17 复核闭合；曾为 4：#38 TarDAL、#39 VMamba、#40 QABF、#41 VIF）** — 终稿 `latex/sn-article/refs.bib` 共 **43 条**，`main.tex` 编译 **0 undefined citations**（`main.bbl` 已生成）。TarDAL 与 VMamba 的条目均在库中（`liu2022tardal`、`liu2024vmamba`）；QABF/VIF 在正文中作为**指标名**出现而非 `\cite` 目标，故不需要独立条目 |
 | 遗留问题总数 | **11 项编号条目**(L1–L3 作者决策;L4–L7 格式/占位待办;L8a–e 03 清单错误记录;L9 近重名警示;L10–L11 条件性) |
 | 首投 [?] 编号复核 | 28/28 落定,**0 项** [PDF-UNREADABLE-SKIPPED] |
 

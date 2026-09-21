@@ -1,0 +1,7 @@
+seed,test_arm,base_arm,convention
+42,CGA_str,B0_e32_s42,budget_matched
+123,CGA_str_s123,B0_e32_s123,budget_matched
+3407,CGA_str_s3407,B0_e32_s3407,budget_matched
+42,CGA_str,B0cmp_full,single_baseline
+42,cga_uniform,CGA_str,content_control
+42,cga_shuffle,CGA_str,content_control

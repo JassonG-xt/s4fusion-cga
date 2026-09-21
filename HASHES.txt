@@ -1,0 +1,31 @@
+# SHA-256 of the load-bearing inputs
+#
+# Manifests, checkpoints and the release-scope documents. The release
+# does not redistribute the checkpoints or the source datasets; these
+# hashes are what a reader with legitimate access to them can check.
+
+## evaluation manifests
+c147422bf850f44a5534801b53e1eb4d0230d84178ec53a6f69c4ccd4e97a729  dataset/manifests/m3fd_test.csv
+
+## trained checkpoints (not redistributed)
+57cda83391c555ce3ab5be17e9fe25a8a8782cff4780bff0363682f36e037857  code/checkpoints/abl_CGA_str_s42.pt
+db1fe7d782ddad1e4ede0b1c623ec5b32f1f2ea0d2a7c1fdf78eb2927f9e1efc  code/checkpoints/abl_CGA_str_s123.pt
+6eb5e0dd4838ae3c4b15b99b2a7d36e1a4e3e2562fae461aece829b566a738e3  code/checkpoints/abl_CGA_str_s3407.pt
+3b0e28725df9c64bf83b0faf2ed00142c830a6ec08a20f3196a4ee2b7e33fefe  code/checkpoints/abl_B0_e32_s42.pt
+a30bacc195e42f40c89c23c873de0c9138ee3552a0796fde6903e52c3c47e9bc  code/checkpoints/abl_B0_e32_s123.pt
+1cb6862f1f85973d766d0b93ec8484d03f8639137bf049b2c23fa073812f429b  code/checkpoints/abl_B0_e32_s3407.pt
+d913a630fd634f8361a3579156043ae17b63b2362283d07af493de93d6b9cf41  code/checkpoints/abl_B0_s42.pt
+69c711fa8fa4a3799dacbd9968a7a0cedbe733f4aa7c891c850771462fd20d20  code/checkpoints/abl_B0_s123.pt
+2fe653b6146ffbc8a4922b4fa6012afcd83d0b949b447f255650cc10eb23e226  code/checkpoints/abl_B0_s3407.pt
+
+## protocol ledgers
+18e2d3cdd5f4a3a7edf3f84d3dc9cf4f9e4a538550c6f7e7d4544e1537594bc2  GATE1_FREEZE.md
+4d8d7c2993b6760c8c4cef8f5c18f4be589442b97cf11375c1116aa60d8fb451  GATE1_AMEND_20260914.md
+c089f2cbd33b9967cc54c3252f1dc754812f8ce1a6b9a3c5c0ad08639dc4ee22  GATE1_PREREG_B3_20260914.md
+
+## release-scope documents
+e23995c4ecfe34e3e1ffb5281c61f7c89622aa12426582fc367459d9c0fdafeb  README.md
+9cf8e28348a7952658b1600b871f8b2df560c13ce925a38b48347bbb5740f89e  REPRODUCE.md
+90fb4f7dde82891ce2dfb2cc5d8adc37d17a1f117133fd5c8a42d7d468fe994f  PROVENANCE.md
+554a945e135a128a161b38e76206075aa4494dca2d42d7afa0e48eaf990e5759  ENVIRONMENT.md
+9881791d705d2d65cb693818ac4ad49f8e62d5611a9d4f99aa254a602f45e64f  LICENSE

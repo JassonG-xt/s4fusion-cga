@@ -94,9 +94,14 @@ class ConflictGatedArbitration(nn.Module):
         commit = s * ir + (1.0 - s) * vi
         weight = torch.tanh(self.gate_scale) * conflict          # conflict-gated, zero at init
         fused_cga = fused + weight * (commit - fused)
+        # "select" is exported so the trained selector's behaviour can be measured
+        # directly (review round 2026-09-18, R2): the paper calls the operator a
+        # HARD commitment, but s is a sigmoid, so whether it saturates to {0,1}
+        # is an empirical question that has to be reported rather than assumed.
+        # Adding a key here cannot affect checkpoint loading or any computed value.
         return fused_cga, {"conflict_logit": conflict_logit, "conflict_pred": conflict,
                            "conflict_target": cf_n.detach(),
-                           "commit": commit, "fused_cga": fused_cga}
+                           "commit": commit, "select": s, "fused_cga": fused_cga}
 
 
 def cga_conflict_loss(aux) -> torch.Tensor:

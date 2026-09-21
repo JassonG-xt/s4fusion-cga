@@ -18,11 +18,34 @@ Reports THREE verdicts, deliberately kept separate:
                  criterion — under the frozen data the primary criterion PASSES
                  while gate-C1 FAILS, so reading the wrong line reverses the
                  route choice.
-  [integrity]    prediction-coverage check. A missing prediction file used to be
-                 silently scored as "not detected", which biases the delta
-                 towards whichever arm has fewer labels. Asymmetric coverage now
-                 exits non-zero (override with --allow-missing when deliberately
-                 reproducing a frozen number).
+  [integrity]    prediction-coverage check. REVISED 2026-09-15 (M10). The original
+                 guard failed on any inter-arm difference in prediction-file count,
+                 which measurement showed to be wrong for this pipeline: ultralytics
+                 writes a label file only for images that have detections (290-298
+                 files per arm, zero empty files across all seven arms), so a missing
+                 file is a zero-detection result and scoring it as "not detected" is
+                 correct. The guard now fails only on evidence of real data loss --
+                 empty label files, missing fused inputs, or a count below
+                 --min-labels -- and reports a bare inter-arm difference as INFO.
+                 --strict-coverage restores the old behaviour so the original
+                 verdict stays reproducible, and --allow-missing suppresses the exit
+                 code entirely.
+
+ADDED 2026-09-18 (review round, R1/R5) -- additive only, no computed value changes:
+  * `--tests A B C`  evaluate several candidate arms against ONE base in a single
+    pass over the manifest, reusing the annotation load and the conflict field.
+    Without the flag the script behaves exactly as before (default TEST=BASE pair).
+  * `--csv PATH`     write the headline numbers of every evaluated pair, including
+    the McNemar odds ratio n01/n10 with a 95% interval derived from the exact
+    Clopper-Pearson interval on the discordant-pair proportion. This is the
+    machine-readable source for the effect-size / CI reporting the review asked
+    for, so no such number has to be re-derived by hand.
+
+The refactor that enables `--tests` splits the old single loop into (1) an
+object/conflict collection pass that does not touch predictions and (2) a
+per-arm scoring pass. The object order, the filtering and every formula are
+unchanged: the frozen default pair still reproduces 0.4385 -> 0.4579, 20/3,
+p=4.883e-04 digit for digit (regression test run on 2026-09-18).
 """
 import argparse
 import csv
@@ -45,6 +68,7 @@ ARB = Path("/mnt/e/lunwen/S4Fusion-main/S4Fusion-main-Innovation-2026/code/resul
 MANIFEST = Path("/mnt/e/lunwen/S4Fusion-main/S4Fusion-main-Innovation-2026/dataset/manifests/m3fd_test.csv")
 ROOT_OLD = Path("/mnt/e/lunwen/S4Fusion-main/S4Fusion-main-Innovation")
 
+
 def parse_args():
     """Positional TEST BASE are kept positional so existing callers keep working
     (`arb_full300_stats.py <TEST> <BASE>`, or no args for the frozen default)."""
@@ -52,9 +76,27 @@ def parse_args():
         description="Full-300 arbitration stats: [primary-H5] + [gate-C1] + [integrity]")
     ap.add_argument("test", nargs="?", default="CGA_str")
     ap.add_argument("base", nargs="?", default="B0cmp_full")
+    ap.add_argument("--tests", nargs="*", default=None,
+                    help="evaluate several arms against the same BASE in one pass; "
+                         "overrides the positional TEST")
+    ap.add_argument("--pairs", nargs="*", default=None,
+                    help="explicit test:base pairs evaluated in one pass (each pair may "
+                         "have a different base); overrides --tests and the positionals")
+    ap.add_argument("--csv", default=None,
+                    help="write headline numbers (+ McNemar OR with 95%% CI) for every "
+                         "evaluated pair to this path")
     ap.add_argument("--allow-missing", action="store_true",
-                    help="do not exit non-zero on asymmetric prediction coverage "
+                    help="do not exit non-zero on any integrity finding "
                          "(use only to reproduce a frozen number deliberately)")
+    ap.add_argument("--strict-coverage", action="store_true",
+                    help="M10: restore the pre-2026-09-15 guard, which treated any "
+                         "inter-arm difference in prediction-file count as lost data. "
+                         "Kept so the original verdict stays reproducible; the premise "
+                         "was measured to be wrong for this pipeline (see the integrity "
+                         "block in main()).")
+    ap.add_argument("--min-labels", type=int, default=None,
+                    help="M10: fail if either arm has fewer than this many prediction "
+                         "files (pass that arm's own historical count).")
     return ap.parse_args()
 
 
@@ -71,16 +113,33 @@ def read_annotations(zf: zipfile.ZipFile) -> dict:
     return anns
 
 
-def main():
-    args = parse_args()
-    TEST, BASE = args.test, args.base
-    rows = list(csv.DictReader(MANIFEST.open(encoding="utf-8-sig")))
-    ids = sorted({r["sample_id"] for r in rows})
-    with zipfile.ZipFile(ROOT_OLD / "archive.zip") as zf:
-        anns = read_annotations(zf)
+def _label_dir(arm: str) -> Path:
+    return ARB / arm / "runs_full" / "det" / "labels"
 
-    cf, base, test = [], [], []
-    miss_b = miss_t = 0
+
+def _label_stats(arm: str) -> tuple[int, int]:
+    """(file count, empty-file count) for one arm's prediction directory.
+
+    The empty-file count is the discriminator that matters: ultralytics writes a
+    label file only when an image has at least one detection, so a MISSING file is
+    a zero-detection result, whereas an EMPTY file means the image was reached but
+    the write was truncated. Only the latter (plus missing fused inputs) is
+    evidence of lost data.
+    """
+    d = _label_dir(arm)
+    files = sorted(d.glob("*.txt")) if d.is_dir() else []
+    return len(files), sum(1 for f in files if f.stat().st_size == 0)
+
+
+def collect_objects(ids, anns):
+    """Pass 1 -- image/annotation/conflict only; predictions are NOT touched here.
+
+    The conflict field and the high-conflict subset are functions of the IR/VI
+    inputs alone, so they are computed once and shared by every arm. Object order
+    is exactly the frozen loop's order (ids ascending, then GT lines ascending).
+    """
+    objects = []          # (sid, box_xyxy, cls, conflict_mean)
+    meta = {}             # sid -> (H, W)
     n_has_gt = n_has_src = 0
     for sid in ids:
         gt_lines = anns.get(sid)
@@ -94,20 +153,11 @@ def main():
         ir = np.asarray(Image.open(ir_p).convert("L"), float) / 255
         vi = np.asarray(Image.open(vi_p).convert("RGB").convert("YCbCr").getchannel("Y"), float) / 255
         H, W = ir.shape
+        meta[sid] = (H, W)
         gxi, gyi, gi = D.grad(ir)
         gxv, gyv, gv = D.grad(vi)
         cos = (gxi * gxv + gyi * gyv) / (gi * gv + 1e-9)
         conflict = np.minimum(gi, gv) * (1 - cos) / 2
-
-        pb_path = ARB / BASE / "runs_full" / "det" / "labels" / f"{sid}.txt"
-        pt_path = ARB / TEST / "runs_full" / "det" / "labels" / f"{sid}.txt"
-        pb = D.load_yolo(pb_path, True) if pb_path.is_file() else None
-        pt = D.load_yolo(pt_path, True) if pt_path.is_file() else None
-        if pb is None:
-            miss_b += 1
-        if pt is None:
-            miss_t += 1
-
         for line in gt_lines:
             s = line.split()
             if len(s) < 5:
@@ -118,45 +168,152 @@ def main():
             xi1, yi1 = int(min(W, x1)), int(min(H, y1))
             if xi1 - xi0 < 2 or yi1 - yi0 < 2:
                 continue
-            gx = (x0, y0, x1, y1)
-            cf.append(float(conflict[yi0:yi1, xi0:xi1].mean()))
-            base.append(bool(pb is not None and D.detected(gx, g[0], pb, W, H)))
-            test.append(bool(pt is not None and D.detected(gx, g[0], pt, W, H)))
+            objects.append((sid, (x0, y0, x1, y1), g[0],
+                            float(conflict[yi0:yi1, xi0:xi1].mean())))
+    return objects, meta, n_has_gt, n_has_src
 
-    A = {k: np.array(v) for k, v in dict(cf=cf, base=base, test=test).items()}
-    hi = A["cf"] > np.percentile(A["cf"], 66)
-    b_hi, t_hi = A["base"][hi], A["test"][hi]
+
+def arm_vector(arm: str, objects, meta):
+    """Pass 2 -- detection vector for one arm, in the frozen object order.
+
+    `miss` counts IDS (images) whose prediction file is absent, not objects: that
+    is the frozen semantics and it is what makes the coverage line
+    `n_has_src - miss` agree with the label-file count reported beside it.
+    """
+    cache: dict = {}
+    missing_ids: set = set()
+    det = np.zeros(len(objects), dtype=bool)
+    for i, (sid, gx, cls, _cf) in enumerate(objects):
+        if sid not in cache:
+            path = _label_dir(arm) / f"{sid}.txt"
+            cache[sid] = D.load_yolo(path, True) if path.is_file() else None
+        preds = cache[sid]
+        if preds is None:
+            missing_ids.add(sid)
+        H, W = meta[sid]
+        det[i] = bool(preds is not None and D.detected(gx, cls, preds, W, H))
+    return det, len(missing_ids)
+
+
+def or_ci(n01: int, n10: int) -> tuple[float, float, float]:
+    """McNemar odds ratio n01/n10 with a 95% interval from the exact Clopper-Pearson
+    interval on the discordant-pair proportion pi = n01/(n01+n10).
+
+    pi_lo = CP lower bound -> OR_lo = pi_lo/(1-pi_lo); pi_hi -> OR_hi. The point
+    estimate is the sample OR. Guarded against an empty discordant set (no test is
+    possible) and against a degenerate bound at 0 or 1 (open interval -> inf).
+    """
+    n = n01 + n10
+    if n == 0:
+        return float("nan"), float("nan"), float("nan")
+    or_hat = float("inf") if n10 == 0 else n01 / n10
+    ci = stats.binomtest(n01, n).proportion_ci(confidence_level=0.95, method="exact")
+    lo, hi = float(ci.low), float(ci.high)
+
+    def _t(p: float) -> float:
+        if p <= 0.0:
+            return 0.0
+        return float("inf") if p >= 1.0 else p / (1.0 - p)
+
+    return or_hat, _t(lo), _t(hi)
+
+
+def score(test: str, base: str, objects, meta, args, anns, ids, n_has_gt, n_has_src,
+          base_vec=None, base_miss=None):
+    det_t, miss_t = arm_vector(test, objects, meta)
+    if base_vec is None:
+        det_b, miss_b = arm_vector(base, objects, meta)
+    else:
+        det_b, miss_b = base_vec, base_miss
+
+    cf = np.array([o[3] for o in objects])
+    hi = cf > np.percentile(cf, 66)
+    b_hi, t_hi = det_b[hi], det_t[hi]
     n01 = int(((b_hi == 0) & (t_hi == 1)).sum())
     n10 = int(((b_hi == 1) & (t_hi == 0)).sum())
     p = stats.binomtest(min(n01, n10), n01 + n10, 0.5).pvalue if (n01 + n10) > 0 else 1.0
     delta_hi = float(t_hi.mean() - b_hi.mean())
-    delta_all = float(A["test"].mean() - A["base"].mean())
+    delta_all = float(det_t.mean() - det_b.mean())
 
-    # --- integrity (M3) ------------------------------------------------------
-    # A missing prediction file is scored as "not detected" (see pb/pt = None
-    # above), which biases the delta towards whichever arm has fewer labels.
+    # --- integrity (M3, revised 2026-09-15 = M10) ---------------------------
+    # The original guard treated ANY inter-arm difference in the number of
+    # prediction files as lost data. Measured on 2026-09-15 (B-1 content control)
+    # that premise is wrong for this pipeline: ultralytics writes a label file
+    # only when an image has >=1 detection -- all seven arms hold 290-298 files
+    # and NOT ONE empty file -- so a missing file IS a zero-detection result and
+    # scoring it as "not detected" is correct, not a bias. Meanwhile the frozen
+    # H5 control itself compared 293 against 290 files, so the old guard would
+    # have invalidated the frozen verdict too.
+    #
+    # Revised rule. FAIL (exit non-zero) only on evidence of real data loss:
+    #   (a) an arm contains EMPTY label files      -> write was truncated
+    #   (b) a fused image is missing for an id with GT -> the arm never ran
+    #   (c) a label count below --min-labels       -> below that arm's own history
+    # A bare inter-arm count difference is reported as INFO. --strict-coverage
+    # restores the old FAIL behaviour, for deliberately reproducing the original
+    # verdict. No number computed above is affected by any of this.
+    print(f"[integrity] pair {test} vs {base}")
     print(f"[integrity] ids_total={len(ids)} ids_with_gt={n_has_gt} "
-          f"ids_with_sources={n_has_src} objects={len(A['cf'])}")
+          f"ids_with_sources={n_has_src} objects={len(objects)}")
     print(f"[integrity] the high-conflict subset is variant-independent by "
           f"construction (conflict is computed from the IR/VI inputs, not the predictions)")
-    print(f"[integrity] prediction coverage: {BASE}={n_has_src - miss_b}/{n_has_src} "
-          f"{TEST}={n_has_src - miss_t}/{n_has_src}")
+    n_b_files, n_b_empty = _label_stats(base)
+    n_t_files, n_t_empty = _label_stats(test)
+    print(f"[integrity] prediction coverage: {base}={n_has_src - miss_b}/{n_has_src} "
+          f"({n_b_files} files, {n_b_empty} empty) "
+          f"{test}={n_has_src - miss_t}/{n_has_src} ({n_t_files} files, {n_t_empty} empty)")
+
+    empty_present = (n_b_empty + n_t_empty) > 0
+    missing_fused = [sid for sid in ids
+                     if not ((ARB / base / "images" / f"{sid}.png").is_file()
+                             and (ARB / test / "images" / f"{sid}.png").is_file())]
+    low_labels = (args.min_labels is not None
+                  and min(n_b_files, n_t_files) < args.min_labels)
+
+    if empty_present:
+        print(f"[integrity] FAIL (a): EMPTY label files present "
+              f"({base}={n_b_empty}, {test}={n_t_empty}) -- that arm was reached but "
+              f"its write was truncated. This IS lost data; investigate.")
+    if missing_fused:
+        print(f"[integrity] FAIL (b): {len(missing_fused)} id(s) with GT have no fused "
+              f"image in one of the arms (e.g. {missing_fused[:5]}) -- that arm never "
+              f"ran on them. This IS lost data; investigate.")
+    if low_labels:
+        print(f"[integrity] FAIL (c): label count below --min-labels={args.min_labels} "
+              f"({base}={n_b_files}, {test}={n_t_files}) -- below this arm's own history.")
+
     asym = miss_b != miss_t
     if asym:
-        favoured = TEST if miss_b > miss_t else BASE
-        print(f"[integrity] FAIL: prediction coverage is ASYMMETRIC "
-              f"(missing {BASE}={miss_b}, {TEST}={miss_t}). The arm with fewer labels is "
-              f"scored as 'not detected' more often, which biases the delta towards "
-              f"{favoured}. Investigate before reading any verdict below.")
-    elif miss_b:
-        print(f"[integrity] WARN: {miss_b} prediction file(s) missing in BOTH arms; "
-              f"coverage is symmetric so the delta is not directionally biased.")
+        print(f"[integrity] INFO: the two arms differ in prediction-file count "
+              f"(missing {base}={miss_b}, {test}={miss_t}). Under this pipeline a missing "
+              f"file is a zero-detection result (ultralytics omits files for images with "
+              f"no detection; zero empty files across every arm), so the difference is "
+              f"detector behaviour, not lost data. Scoring those objects as 'not detected' "
+              f"is correct.")
+        if args.strict_coverage:
+            favoured = test if miss_b > miss_t else base
+            print(f"[integrity] FAIL (strict-coverage): treating the asymmetry as lost data "
+                  f"biases the delta towards {favoured}. --strict-coverage was requested.")
 
-    print(f"[stats] objects={len(A['cf'])} high-conflict={int(hi.sum())} "
-          f"(missing preds: {BASE}={miss_b}, {TEST}={miss_t})")
-    print(f"[stats] recall ALL:   {BASE}={A['base'].mean():.4f} -> {TEST}={A['test'].mean():.4f} ({delta_all:+.4f})")
-    print(f"[stats] recall HIGH:  {BASE}={b_hi.mean():.4f} -> {TEST}={t_hi.mean():.4f} ({delta_hi:+.4f})  "
+    hard_fail = empty_present or bool(missing_fused) or low_labels
+    soft_fail = asym and args.strict_coverage
+    if (hard_fail or soft_fail) and not args.allow_missing:
+        print("[integrity] exiting non-zero. Use --allow-missing ONLY to reproduce a "
+              "frozen number deliberately.")
+        sys.exit(3)
+    if not hard_fail and not soft_fail:
+        print("[integrity] PASS: no empty files, no missing fused inputs, no count below "
+              "the arm's own history.")
+
+    print(f"[stats] objects={len(objects)} high-conflict={int(hi.sum())} "
+          f"(missing preds: {base}={miss_b}, {test}={miss_t})")
+    print(f"[stats] recall ALL:   {base}={det_b.mean():.4f} -> {test}={det_t.mean():.4f} ({delta_all:+.4f})")
+    print(f"[stats] recall HIGH:  {base}={b_hi.mean():.4f} -> {test}={t_hi.mean():.4f} ({delta_hi:+.4f})  "
           f"recovered={n01} lost={n10}  p={p:.3e}")
+
+    or_hat, or_lo, or_hi = or_ci(n01, n10)
+    print(f"[stats] McNemar OR (recovered/lost) = {or_hat:.4f} "
+          f"[95% CI {or_lo:.4f}, {or_hi:.4f}]  (exact CP interval on {n01}/{n01+n10} discordant)")
 
     # --- the FROZEN primary criterion: this is what governs the route decision --
     ok_primary = (p < 0.05) and ((n01 - n10) >= 3)
@@ -172,10 +329,67 @@ def main():
           f"{'PASS' if ok_c1 else 'FAIL'} "
           f"(delta={delta_hi:+.4f}, p={p:.2e})   <== secondary, not the primary criterion")
 
-    if asym and not args.allow_missing:
-        print("[integrity] exiting non-zero: coverage is asymmetric. "
-              "Use --allow-missing ONLY to reproduce a frozen number deliberately.")
-        sys.exit(3)
+    # The integrity verdict (M10) is emitted above, next to the coverage numbers it
+    # is derived from, so the three checks and their evidence stay together.
+
+    return {
+        "test": test, "base": base, "objects": len(objects),
+        "high_conflict_n": int(hi.sum()),
+        "base_recall_high": round(float(b_hi.mean()), 6),
+        "test_recall_high": round(float(t_hi.mean()), 6),
+        "delta_high": round(delta_hi, 6),
+        "recovered": n01, "lost": n10,
+        "or_mcnemar": ("inf" if or_hat == float("inf") else round(or_hat, 6)),
+        "or_ci_lo": ("inf" if or_lo == float("inf") else round(or_lo, 6)),
+        "or_ci_hi": ("inf" if or_hi == float("inf") else round(or_hi, 6)),
+        "p_exact_binom": f"{p:.6e}",
+        "base_recall_all": round(float(det_b.mean()), 6),
+        "test_recall_all": round(float(det_t.mean()), 6),
+        "delta_all": round(delta_all, 6),
+        "primary_H5": "PASS" if ok_primary else "FAIL",
+        "gate_C1": "PASS" if ok_c1 else "FAIL",
+        "missing_base": miss_b, "missing_test": miss_t,
+    }
+
+
+def main():
+    args = parse_args()
+    if args.pairs:
+        pairs = []
+        for spec in args.pairs:
+            if ":" not in spec:
+                raise SystemExit(f"--pairs entry must be test:base, got {spec!r}")
+            t, b = spec.split(":", 1)
+            pairs.append((t.strip(), b.strip()))
+    else:
+        tests = args.tests if args.tests else [args.test]
+        pairs = [(t, args.base) for t in tests]
+
+    rows = list(csv.DictReader(MANIFEST.open(encoding="utf-8-sig")))
+    ids = sorted({r["sample_id"] for r in rows})
+    with zipfile.ZipFile(ROOT_OLD / "archive.zip") as zf:
+        anns = read_annotations(zf)
+
+    objects, meta, n_has_gt, n_has_src = collect_objects(ids, anns)
+
+    base_cache: dict = {}
+    out = []
+    for test, base in pairs:
+        if base not in base_cache:
+            base_cache[base] = arm_vector(base, objects, meta)
+        det_b, miss_b = base_cache[base]
+        out.append(score(test, base, objects, meta, args, anns, ids,
+                         n_has_gt, n_has_src, base_vec=det_b, base_miss=miss_b))
+        print()
+
+    if args.csv:
+        path = Path(args.csv)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", newline="", encoding="utf-8") as fh:
+            wr = csv.DictWriter(fh, fieldnames=list(out[0].keys()))
+            wr.writeheader()
+            wr.writerows(out)
+        print(f"[csv] wrote {len(out)} row(s) -> {path}")
 
 
 if __name__ == "__main__":

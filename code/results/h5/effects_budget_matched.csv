@@ -1,0 +1,4 @@
+test,base,objects,high_conflict_n,base_recall_high,test_recall_high,delta_high,recovered,lost,or_mcnemar,or_ci_lo,or_ci_hi,p_exact_binom,base_recall_all,test_recall_all,delta_all,primary_H5,gate_C1,missing_base,missing_test
+CGA_str,B0_e32_s42,2583,878,0.441913,0.457859,0.015945,18,4,4.5,1.48234,18.27997,4.343510e-03,0.628339,0.638405,0.010066,PASS,FAIL,9,7
+CGA_str_s123,B0_e32_s123,2583,878,0.447608,0.454442,0.006834,13,7,1.857143,0.688651,5.497337,2.631760e-01,0.631049,0.635695,0.004646,FAIL,FAIL,8,6
+CGA_str_s3407,B0_e32_s3407,2583,878,0.449886,0.454442,0.004556,11,7,1.571429,0.556302,4.780819,4.806824e-01,0.631823,0.635308,0.003484,FAIL,FAIL,8,6
